@@ -1,6 +1,7 @@
 package com.example.firstproject
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
@@ -24,6 +26,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
+
             val pinkTheme = lightColorScheme(
                 primary = Color(0xFFE91E63),
                 secondary = Color(0xFFF8BBD0),
@@ -31,9 +34,8 @@ class MainActivity : ComponentActivity() {
                 surface = Color.White
             )
 
-            MaterialTheme(
-                colorScheme = pinkTheme
-            ) {
+            MaterialTheme(colorScheme = pinkTheme) {
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -48,8 +50,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PinkTaggedScreen() {
 
-    var searchQuery by remember { mutableStateOf("") }
+    var dictQuery by remember { mutableStateOf("") }
+    var dictResult by remember { mutableStateOf("") }
+
     var tagQuery by remember { mutableStateOf("") }
+
     var tags by remember {
         mutableStateOf(
             listOf(
@@ -62,6 +67,9 @@ fun PinkTaggedScreen() {
             )
         )
     }
+
+    val context = LocalContext.current
+    val dictionary = remember { loadDictionary(context) }
 
     Box(
         modifier = Modifier
@@ -76,29 +84,55 @@ fun PinkTaggedScreen() {
                 .verticalScroll(rememberScrollState())
         ) {
 
+            // DICTIONARY CARD (со сенка)
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 elevation = CardDefaults.cardElevation(6.dp)
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("Search query") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+
+                Column(modifier = Modifier.padding(10.dp)) {
+
+                    OutlinedTextField(
+                        value = dictQuery,
+                        onValueChange = { dictQuery = it },
+                        label = { Text("Enter word") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            dictResult = searchInDictionary(dictionary, dictQuery)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Search")
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (dictResult.isNotEmpty()) {
+                        Text(
+                            text = "$dictQuery = $dictResult",
+                            style = MaterialTheme.typography.bodyLarge
                         )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // TAG YOUR QUERY
 
             OutlinedTextField(
                 value = tagQuery,
@@ -132,6 +166,7 @@ fun PinkTaggedScreen() {
             Spacer(modifier = Modifier.height(12.dp))
 
             tags.forEach { tag ->
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -144,6 +179,7 @@ fun PinkTaggedScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+
                     Text(
                         text = tag,
                         style = MaterialTheme.typography.bodyLarge,
@@ -158,7 +194,7 @@ fun PinkTaggedScreen() {
         }
 
         FloatingActionButton(
-            onClick = { tags = emptyList() },
+            onClick = { tags = emptyList<String>() },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
@@ -170,4 +206,41 @@ fun PinkTaggedScreen() {
             )
         }
     }
+}
+
+fun loadDictionary(context: Context): Map<String, String> {
+
+    val map = mutableMapOf<String, String>()
+
+    try {
+
+        val inputStream = context.assets.open("dictionary.txt")
+
+        inputStream.bufferedReader().forEachLine { line ->
+
+            val parts = line.split(",")
+
+            if (parts.size == 2) {
+
+                val key = parts[0].trim()
+                val value = parts[1].trim()
+
+                map[key] = value
+                map[value] = key
+            }
+        }
+
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+
+    return map
+}
+
+fun searchInDictionary(
+    dictionary: Map<String, String>,
+    query: String
+): String {
+
+    return dictionary[query.trim()] ?: "Not found"
 }
